@@ -110,8 +110,9 @@ local function eval_split(split, evalopt)
   local loss_sum = 0
   local loss_evals = 0
   local predictions = {}
+  local file_im = io.open("../images/images.txt", "a")
   while true do
-
+    -- local file_im = io.open("images.txt", "a")
     -- fetch a batch of data
     local data = loader:getBatch{batch_size = opt.batch_size, split = split, seq_per_img = opt.seq_per_img}
     data.images = net_utils.prepro(data.images, false, opt.gpuid >= 0) -- preprocess in place, and don't augment
@@ -132,7 +133,7 @@ local function eval_split(split, evalopt)
 
     -- forward the model to also get generated samples for each image
     local sample_opts = { sample_max = opt.sample_max, beam_size = opt.beam_size, temperature = opt.temperature }
-    local seq = protos.lm:sample(feats, sample_opts)
+    local seq = protos.lm:sample(feats, sample_opts, vocab)
     local sents = net_utils.decode_sequence(vocab, seq)
     for k=1,#sents do
       local entry = {image_id = data.infos[k].id, caption = sents[k]}
@@ -143,6 +144,7 @@ local function eval_split(split, evalopt)
       if opt.dump_images == 1 then
         -- dump the raw image to vis/ folder
         local cmd = 'cp "' .. path.join(opt.image_root, data.infos[k].file_path) .. '" vis/imgs/img' .. #predictions .. '.jpg' -- bit gross
+        file_im:write(path.join(opt.image_root, data.infos[k].file_path).."\n")
         print(cmd)
         os.execute(cmd) -- dont think there is cleaner way in Lua
       end
@@ -161,7 +163,7 @@ local function eval_split(split, evalopt)
     if data.bounds.wrapped then break end -- the split ran out of data, lets break out
     if num_images >= 0 and n >= num_images then break end -- we've used enough images
   end
-
+  file_im:close()
   local lang_stats
   if opt.language_eval == 1 then
     lang_stats = net_utils.language_eval(predictions, opt.id)

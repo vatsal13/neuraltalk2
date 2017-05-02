@@ -95,11 +95,11 @@ Careful: make sure model is in :evaluate() mode if you're calling this.
 Returns: a DxN LongTensor with integer elements 1..M, 
 where D is sequence length and N is batch (so columns are sequences)
 --]]
-function layer:sample(imgs, opt)
+function layer:sample(imgs, opt, voc)
   local sample_max = utils.getopt(opt, 'sample_max', 1)
   local beam_size = utils.getopt(opt, 'beam_size', 1)
   local temperature = utils.getopt(opt, 'temperature', 1.0)
-  if sample_max == 1 and beam_size > 1 then return self:sample_beam(imgs, opt) end -- indirection for beam search
+  if sample_max == 1 and beam_size > 1 then return self:sample_beam(imgs, opt, voc) end -- indirection for beam search
 
   local batch_size = imgs:size(1)
   self:_createInitState(batch_size)
@@ -163,7 +163,7 @@ Not 100% sure it's correct, and hard to fully unit test to satisfaction, but
 it seems to work, doesn't crash, gives expected looking outputs, and seems to 
 improve performance, so I am declaring this correct.
 ]]--
-function layer:sample_beam(imgs, opt)
+function layer:sample_beam(imgs, opt, voc)
   local beam_size = utils.getopt(opt, 'beam_size', 10)
   local batch_size, feat_dim = imgs:size(1), imgs:size(2)
   local function compare(a,b) return a.p > b.p end -- used downstream
@@ -172,6 +172,7 @@ function layer:sample_beam(imgs, opt)
 
   local seq = torch.LongTensor(self.seq_length, batch_size):zero()
   local seqLogprobs = torch.FloatTensor(self.seq_length, batch_size)
+  local file_o = io.open("../questions/questions.txt", "a")
   -- lets process every image independently for now, for simplicity
   for k=1,batch_size do
 
@@ -268,12 +269,30 @@ function layer:sample_beam(imgs, opt)
       state = {}
       for i=1,self.num_state do table.insert(state, out[i]) end
     end
-
+    -- io.output(file_o)
     table.sort(done_beams, compare)
     seq[{ {}, k }] = done_beams[1].seq -- the first beam has highest cumulative score
     seqLogprobs[{ {}, k }] = done_beams[1].logps
+    print(net_utils.decode_sequence(voc, seq))
+    file_o:write(net_utils.decode_sequence(voc, seq)[1].." ?\n")
+    seq[{ {}, k }] = done_beams[2].seq -- the first beam has highest cumulative score
+    seqLogprobs[{ {}, k }] = done_beams[2].logps
+    print(net_utils.decode_sequence(voc, seq))
+    file_o:write(net_utils.decode_sequence(voc, seq)[1].." ?\n")
+    seq[{ {}, k }] = done_beams[3].seq -- the first beam has highest cumulative score
+    seqLogprobs[{ {}, k }] = done_beams[3].logps
+    print(net_utils.decode_sequence(voc, seq))
+    file_o:write(net_utils.decode_sequence(voc, seq)[1].." ?\n")
+    seq[{ {}, k }] = done_beams[4].seq -- the first beam has highest cumulative score
+    seqLogprobs[{ {}, k }] = done_beams[4].logps
+    print(net_utils.decode_sequence(voc, seq))
+    file_o:write(net_utils.decode_sequence(voc, seq)[1].." ?\n")
+    seq[{ {}, k }] = done_beams[5].seq -- the first beam has highest cumulative score
+    seqLogprobs[{ {}, k }] = done_beams[5].logps
+    print(net_utils.decode_sequence(voc, seq))
+    file_o:write(net_utils.decode_sequence(voc, seq)[1].." ?\n")
   end
-
+  file_o:close()
   -- return the samples and their log likelihoods
   return seq, seqLogprobs
 end
